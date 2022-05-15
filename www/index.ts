@@ -1,5 +1,6 @@
-import init, {World, Direction} from "wasm-game";
+import init, {World, Direction, GameStatus} from "wasm-game";
 import Universe from "wasm-game";
+import { rnd } from "./utils/rnd";
 
 init().then(wasm => {
     //wasm.memory
@@ -10,26 +11,34 @@ init().then(wasm => {
     const ALIVE_COLOR = "#ffffff";
 
     const WORLD_WIDTH = 8;
-    const snakeSpawnIdx = Date.now() % (WORLD_WIDTH * WORLD_WIDTH);
+    const snakeSpawnIdx = rnd(WORLD_WIDTH * WORLD_WIDTH);
 
     const world = World.new(WORLD_WIDTH, snakeSpawnIdx);
     const worldWidth = world.width();
+
+    const points = document.getElementById("points");
+    const gameControlBtn = document.getElementById("game-control-btn");
+    const gameStatus = document.getElementById("game-status");
 
     const canvas = <HTMLCanvasElement> document.getElementById("wasm-canvas");
     const ctx = canvas.getContext("2d");
     canvas.height = worldWidth * CELL_SIZE;
     canvas.width = worldWidth * CELL_SIZE;
 
+    gameControlBtn.addEventListener("click", _ => {
+        const Status = world.game_status();
+
+        if (Status === undefined) {
+            gameControlBtn.textContent = "Press to stop playing .."
+            world.start_game();
+            play();
+        } else {
+            location.reload();
+        }
+    });
+
     const snakeCellPtr = world.snake_cells();
     const snakeLen = world.snake_length();
-
-    const snakeCells = new Uint32Array(
-        wasm.memory.buffer,
-        snakeCellPtr,
-        snakeLen
-    )
-
-
 
     document.addEventListener("keydown", (e) => {
         //console.log(e.code);
@@ -50,6 +59,7 @@ init().then(wasm => {
     })
 
     function drawWorld() {
+
         ctx.beginPath();
         ctx.strokeStyle = GRID_COLOR;
         for (let x = 0; x < worldWidth + 1; x++) {
@@ -63,12 +73,15 @@ init().then(wasm => {
         }
         ctx.stroke();
     }
-    function drawSnake() {
-        const snakeIdx = world.snake_head_idx();
-        const col = snakeIdx % worldWidth;
-        const row = Math.floor(snakeIdx / worldWidth);
+
+    function drawReward() {
+        const idx = world.reward_cell();
+
+        const col = idx % worldWidth;
+        const row = Math.floor(idx / worldWidth);
+
         ctx.beginPath();
-        ctx.fillStyle = DEAD_COLOR;
+        ctx.fillStyle = '#456b9b';
         ctx.fillRect(
             col * CELL_SIZE,
             row * CELL_SIZE,
@@ -76,20 +89,72 @@ init().then(wasm => {
             CELL_SIZE
         );
         ctx.stroke();
+
+        if (idx === undefined) {
+            alert("the Snake ate all");
+        }
     }
+
+
+    function drawSnake() {
+        //const snakeIdx = world.snake_head_idx();
+        const snakeCells = new Uint32Array(
+            wasm.memory.buffer,
+            world.snake_cells(),
+            world.snake_length()
+        )
+
+
+        snakeCells
+            .filter((cellIdx, i) => !(i > 0 && cellIdx === snakeCells[0]))
+            .forEach((cellIdx, i) => {
+            const col = cellIdx % worldWidth;
+            const row = Math.floor(cellIdx / worldWidth);
+
+            ctx.fillStyle = i === 0 ? "#7878db" : "#985555";
+
+            ctx.beginPath();
+            ctx.fillRect(
+                col * CELL_SIZE,
+                row * CELL_SIZE,
+                CELL_SIZE,
+                CELL_SIZE
+            );
+        })
+        ctx.stroke();
+    }
+
+    function drawGameStatus() {
+        gameStatus.textContent = world.game_status_text();
+        points.textContent = world.points().toString();
+    }
+
     function paint() {
         drawWorld();
         drawSnake();
+        drawReward();
+        drawGameStatus();
     }
-    function update() {
-        const fps = 3;
+    function play() {
+        const status = world.game_status();
+        if (status == GameStatus.Won) {
+            alert("Won");
+            gameControlBtn.textContent = "Press to replay";
+            return;
+        }
+        if (status == GameStatus.Lost) {
+            alert("Lost");
+            gameControlBtn.textContent = "Press to replay";
+            return;
+        }
+
+        const fps = 10;
         setTimeout(() => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            world.update();
+            world.step();
             paint();
-            requestAnimationFrame(update)
+            requestAnimationFrame(play)
         }, 1000 / fps)
     }
     paint();
-    update();
 })

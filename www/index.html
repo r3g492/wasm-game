@@ -18,19 +18,49 @@
             justify-content: center;
             flex-direction: column;
         }
+
+        .game-panel {
+            margin-bottom: 20px;
+        }
+        .flex {
+            display: flex;
+            margin-right: 100px;
+        }
+        .label {
+            font-weight: bold;
+            margin-right: 100px;
+        }
     </style>
 </head>
 <body>
 <div class="content-wrapper">
+    <div class="game-panel">
+        <div class="flex">
+            <div class="label">
+                Status
+            </div>
+            <div id = "game-status">
+                None
+            </div>
+        </div>
+        <div class="flex">
+            <div class="label">
+                Points :
+            </div>
+            <div id = "points">
+            </div>
+        </div>
+        <div class ="flex">
+            <button id ="game-control-btn">
+                Play!
+            </button>
+        </div>
+    </div>
     <canvas id="wasm-canvas"></canvas>
 </div>
 <script src = "./bootstrap.js">
 </script>
 
-<form>
-    Data:<br>
-    <input type="text" name="Data"><br>
-</form>
 
 </body>
 </html>
